@@ -18,4 +18,62 @@ permissions:
 jobs:
   scan-pr:
     uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2.3.2"
+
+name: OSV-Scanner Scheduled Scan
+
+on:
+  schedule:
+    - cron: "30 12 * * 1"
+  # Change "main" to your default branch if you use a different name, i.e. "master"
+  push:
+    branches: [main]
+
+permissions:
+  # Required to upload SARIF file to CodeQL. See: https://github.com/github/codeql-action/issues/2117
+  actions: read
+  # Require writing security events to upload SARIF file to security tab
+  security-events: write
+  # Only need to read contents
+  contents: read
+
+jobs:
+  scan-scheduled:
+    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.3.2"
     
+name: Go Release Process
+
+on:
+  push:
+    tags:
+      - "*" # triggers only if push new tag version, like `0.8.4` or else
+
+permissions:
+  # Required to upload SARIF file to CodeQL. See: https://github.com/github/codeql-action/issues/2117
+  actions: read
+  # Require writing security events to upload SARIF file to security tab
+  security-events: write
+  # to fetch code (actions/checkout)
+  contents: read
+
+jobs:
+  osv-scan:
+    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2.3.2"
+    with:
+      # Only scan the top level go.mod file without recursively scanning directories since
+      # this is pipeline is about releasing the go module and binary
+      scan-args: |-
+        ./
+    permissions:
+      # Require writing security events to upload SARIF file to security tab
+      security-events: write
+  tests:
+    name: Run unit tests
+    ...
+  release:
+    needs: # Needs both tests and osv-scan to pass
+      - tests
+      - osv-scan
+    # Your actual release steps
+    steps:
+      ...
+      
